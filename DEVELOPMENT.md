@@ -91,7 +91,7 @@ While it should allow for a generic setup, it might need to be modified to fit y
 
 From the project root, run the following commands
 
-- **Build docker image from** by running `docker build -t getontime/ontime .`
+- **Build docker image from source** by running `docker build -f Dockerfile-build -t getontime/ontime .`
 - **Run docker image from compose** by running `docker-compose up -d`
 
 Other useful commands

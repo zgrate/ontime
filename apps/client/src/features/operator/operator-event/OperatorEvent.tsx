@@ -24,6 +24,9 @@ interface OperatorEventProps {
   dayOffset: Day;
   isLinkedToLoaded: boolean;
   isSelected: boolean;
+  activeCueProgress: number;
+  isCueWarning: boolean;
+  isCueDanger: boolean;
   isPast: boolean;
   selectedRef?: RefObject<HTMLDivElement | null>;
   showStart: boolean;
@@ -45,6 +48,9 @@ function OperatorEvent({
   dayOffset,
   isLinkedToLoaded,
   isSelected,
+  activeCueProgress,
+  isCueWarning,
+  isCueDanger,
   isPast,
   selectedRef,
   showStart,
@@ -67,8 +73,16 @@ function OperatorEvent({
 
   const mouseHandlers = useLongPress(handleLongPress);
   const cueColours = colour && getAccessibleColour(colour);
+  const hasSecondary = secondary.trim().length > 0;
 
   const operatorClasses = cx([style.event, isSelected && style.running, isPast && style.past]);
+  const cueProgressClasses = cx([
+    style.textBlock,
+    !hasSecondary && style.singleLine,
+    isCueWarning && style.cueWarning,
+    isCueDanger && style.cueDanger,
+    isCueDanger && style.cueDangerBlink,
+  ]);
 
   const hasFields = subscribed.some((field) => field.value);
   const columnCount = subscribed.length ? Math.min(subscribed.length, 4) : 0;
@@ -83,6 +97,11 @@ function OperatorEvent({
     <div
       className={operatorClasses}
       data-testid={cue}
+      style={
+        {
+          '--cue-progress': `${activeCueProgress}%`,
+        } as CSSProperties
+      }
       ref={selectedRef}
       onContextMenu={handleLongPress}
       {...mouseHandlers}
@@ -91,11 +110,13 @@ function OperatorEvent({
         <span className={style.cue}>{cue}</span>
       </div>
 
-      <span className={style.mainField}>
-        {showStart && <SuperscriptPeriod className={style.plannedStart} time={formatTime(timeStart)} />}
-        {main}
-      </span>
-      <span className={style.secondaryField}>{secondary}</span>
+      <div className={cueProgressClasses}>
+        <span className={style.mainField}>
+          {showStart && <SuperscriptPeriod className={style.plannedStart} time={formatTime(timeStart)} />}
+          {main}
+        </span>
+        {hasSecondary && <span className={style.secondaryField}>{secondary}</span>}
+      </div>
       <OperatorEventSchedule
         timeStart={timeStart}
         isPast={isPast}

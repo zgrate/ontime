@@ -115,6 +115,14 @@ If you are a developer and would like to contribute with code, please open an is
 
 Information about the project setup can be found in the [development documentation](./DEVELOPMENT.md)
 
+## Contribution
+
+- Z-Grate
+
+## AI Disclosure
+
+Portions of this project documentation and/or code contributions may include AI-assisted content generation and editing. All AI-assisted changes are reviewed by a human contributor before submission.
+
 ## Links
 
 - [Ontime website](https://getontime.no)

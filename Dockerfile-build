@@ -1,0 +1,38 @@
+ARG NODE_VERSION=22.22.2
+
+FROM node:${NODE_VERSION}-alpine AS builder
+
+WORKDIR /app
+
+# Use corepack to provide the pnpm version from packageManager
+RUN corepack enable
+
+COPY . .
+
+# In Alpine (musl), pnpm cannot install a managed Node binary from useNodeVersion.
+# Remove the workspace setting and use the base image Node runtime.
+RUN sed -i '/^useNodeVersion:/d' pnpm-workspace.yaml
+
+RUN pnpm install --frozen-lockfile
+RUN pnpm build:docker
+
+FROM node:${NODE_VERSION}-alpine AS runtime
+
+# Environment Variable to signal that we are running production
+ENV NODE_ENV=docker
+# Ontime data path
+ENV ONTIME_DATA=/data/
+
+WORKDIR /app
+
+# Runtime artifacts generated in the builder stage
+COPY --from=builder /app/apps/client/build/ ./client/
+COPY --from=builder /app/apps/server/dist/ ./server/
+COPY --from=builder /app/apps/server/src/external/ ./external/
+COPY --from=builder /app/apps/server/src/user/ ./user/
+COPY --from=builder /app/apps/server/src/html/ ./html/
+
+# Export default ports
+EXPOSE 4001/tcp 8888/udp 9999/udp
+
+CMD ["node", "server/docker.cjs"]

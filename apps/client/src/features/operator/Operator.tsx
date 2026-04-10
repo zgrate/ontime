@@ -1,11 +1,13 @@
 import { OntimeView, isOntimeEvent, isOntimeGroup } from 'ontime-types';
+import { MILLIS_PER_SECOND } from 'ontime-utils';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import EmptyPage from '../../common/components/state/EmptyPage';
 import ViewParamsEditor from '../../common/components/view-params-editor/ViewParamsEditor';
 import useFollowComponent from '../../common/hooks/useFollowComponent';
-import { useSelectedEventId } from '../../common/hooks/useSocket';
+import { useProgressData, useSelectedEventId } from '../../common/hooks/useSocket';
 import { useWindowTitle } from '../../common/hooks/useWindowTitle';
+import { getProgress } from '../../common/utils/getProgress';
 import { cx } from '../../common/utils/styleUtils';
 import { throttle } from '../../common/utils/throttle';
 import { getDefaultFormat } from '../../common/utils/time';
@@ -24,6 +26,8 @@ import { OperatorData, useOperatorData } from './useOperatorData';
 import style from './Operator.module.scss';
 
 const selectedOffset = 50;
+const CUE_WARNING_THRESHOLD = 60 * MILLIS_PER_SECOND;
+const CUE_DANGER_THRESHOLD = 10 * MILLIS_PER_SECOND;
 
 export default function OperatorLoader() {
   const { data, status } = useOperatorData();
@@ -43,6 +47,7 @@ export default function OperatorLoader() {
 
 function Operator({ rundown, rundownMetadata, customFields, settings }: OperatorData) {
   const selectedEventId = useSelectedEventId();
+  const { current, duration } = useProgressData();
   const { subscribe, mainSource, secondarySource, shouldEdit, hidePast, showStart } = useOperatorOptions();
 
   const [showEditPrompt, setShowEditPrompt] = useState(false);
@@ -113,6 +118,9 @@ function Operator({ rundown, rundownMetadata, customFields, settings }: Operator
   const operatorOptions = useMemo(() => getOperatorOptions(customFields, defaultFormat), [customFields, defaultFormat]);
 
   const canEdit = shouldEdit && subscribe.length;
+  const activeCueProgress = getProgress(current, duration);
+  const isCueDanger = current !== null && current <= CUE_DANGER_THRESHOLD;
+  const isCueWarning = current !== null && current <= CUE_WARNING_THRESHOLD && !isCueDanger;
 
   return (
     <div className={style.operatorContainer} data-testid='operator-view'>
@@ -159,6 +167,9 @@ function Operator({ rundown, rundownMetadata, customFields, settings }: Operator
                 dayOffset={entry.dayOffset}
                 isLinkedToLoaded={isLinkedToLoaded}
                 isSelected={isLoaded}
+                activeCueProgress={activeCueProgress}
+                isCueWarning={isCueWarning}
+                isCueDanger={isCueDanger}
                 isPast={isPast}
                 selectedRef={isLoaded ? selectedRef : undefined}
                 showStart={showStart}
@@ -216,6 +227,9 @@ function Operator({ rundown, rundownMetadata, customFields, settings }: Operator
                       dayOffset={nestedEntry.dayOffset}
                       isLinkedToLoaded={isLinkedToLoaded}
                       isSelected={isLoaded}
+                      activeCueProgress={activeCueProgress}
+                      isCueWarning={isCueWarning}
+                      isCueDanger={isCueDanger}
                       isPast={isPast}
                       selectedRef={isLoaded ? selectedRef : undefined}
                       showStart={showStart}

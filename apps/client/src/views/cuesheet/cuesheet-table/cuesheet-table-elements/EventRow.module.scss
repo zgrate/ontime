@@ -49,4 +49,39 @@
     background-color: $gray-1200;
     border-radius: 2px;
   }
+
+  &.activeCue td {
+    background-color: $active-green;
+  }
+
+  &.activeCue td[data-column-id='title'] {
+    background-image: linear-gradient(
+      to right,
+      color-mix(in srgb, var(--cue-progress-colour, $active-green) 68%, transparent) var(--cue-progress, 0%),
+      $gray-1200 var(--cue-progress, 0%)
+    );
+    background-color: $gray-1200;
+  }
+
+  &.cueWarning {
+    --cue-progress-colour: #{$warning-orange};
+  }
+
+  &.cueDanger {
+    --cue-progress-colour: #{$playback-negative};
+  }
+
+  &.cueDangerBlink td[data-column-id='title'] {
+    animation: cueDangerBlink 1s step-start infinite;
+  }
+}
+
+@keyframes cueDangerBlink {
+  50% {
+    --cue-progress-colour: #{$playback-negative};
+  }
+
+  100% {
+    --cue-progress-colour: #{$gray-1200};
+  }
 }

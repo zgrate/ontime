@@ -15,7 +15,8 @@ import EmptyPage from '../../../common/components/state/EmptyPage';
 import EmptyTableBody from '../../../common/components/state/EmptyTableBody';
 import { useEntryActionsContext } from '../../../common/context/EntryActionsContext';
 import { useFlatRundownWithMetadata } from '../../../common/hooks-query/useRundown';
-import { useSelectedEventId } from '../../../common/hooks/useSocket';
+import { useProgressData, useSelectedEventId } from '../../../common/hooks/useSocket';
+import { getProgress } from '../../../common/utils/getProgress';
 import type { ExtendedEntry } from '../../../common/utils/rundownMetadata';
 import EditorTableSettings from '../../../features/rundown/rundown-table/EditorTableSettings';
 import { usePersistedRundownOptions } from '../../../features/rundown/rundown.options';
@@ -60,6 +61,7 @@ export default function CuesheetTable({ columns, cuesheetMode, tableRoot, setCue
   const hideIndexColumn = useOptions((state) => state.hideIndexColumn);
 
   const selectedEventId = useSelectedEventId();
+  const { current, duration } = useProgressData();
   const cursor = useEventSelection((state) => state.cursor);
   const setScrollHandler = useEventSelection((state) => state.setScrollHandler);
 
@@ -187,15 +189,18 @@ export default function CuesheetTable({ columns, cuesheetMode, tableRoot, setCue
 
   const allLeafColumns = table.getAllLeafColumns();
   const { rows } = table.getRowModel();
+  const activeCueProgress = getProgress(current, duration);
   const virtuosoContext = useMemo(
     () => ({
+      activeCueProgress,
+      cueCurrent: current,
       columnSizeVars,
       cursor,
       listeners,
       rows,
       table,
     }),
-    [columnSizeVars, cursor, listeners, rows, table],
+    [activeCueProgress, current, columnSizeVars, cursor, listeners, rows, table],
   );
 
   const computeItemKey = useCallback((_: number, item: ExtendedEntry) => item.id, []);
@@ -259,6 +264,8 @@ export default function CuesheetTable({ columns, cuesheetMode, tableRoot, setCue
 }
 
 interface CuesheetVirtuosoContext {
+  activeCueProgress: number;
+  cueCurrent: number | null;
   columnSizeVars: { [key: string]: number };
   cursor: string | null;
   listeners: ReturnType<typeof useTableNav>['listeners'];
@@ -366,6 +373,8 @@ const CuesheetTableRow = memo(function CuesheetTableRow({
       colour={entry.colour}
       isFirstAfterGroup={entry.isFirstAfterGroup}
       isLoaded={entry.isLoaded}
+      activeCueProgress={context.activeCueProgress}
+      cueCurrent={context.cueCurrent}
       isPast={entry.isPast}
       groupColour={entry.groupColour}
       flag={entry.flag}

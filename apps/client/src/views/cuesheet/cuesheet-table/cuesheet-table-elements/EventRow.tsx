@@ -1,6 +1,6 @@
 import { Table, flexRender } from '@tanstack/react-table';
 import { EntryId, OntimeEntry, RGBColour, SupportedEntry } from 'ontime-types';
-import { colourToHex, cssOrHexToColour } from 'ontime-utils';
+import { MILLIS_PER_SECOND, colourToHex, cssOrHexToColour } from 'ontime-utils';
 import { CSSProperties, useMemo } from 'react';
 import { IoEllipsisHorizontal } from 'react-icons/io5';
 
@@ -19,6 +19,8 @@ interface EventRowProps {
   colour: string;
   isFirstAfterGroup: boolean;
   isLoaded: boolean;
+  activeCueProgress: number;
+  cueCurrent: number | null;
   isPast: boolean;
   groupColour: string | undefined;
   flag: boolean;
@@ -37,6 +39,8 @@ export default function EventRow({
   colour,
   isFirstAfterGroup,
   isLoaded,
+  activeCueProgress,
+  cueCurrent,
   isPast,
   groupColour,
   flag,
@@ -48,6 +52,9 @@ export default function EventRow({
   hasCursor,
   ...virtuosoProps
 }: EventRowProps) {
+  const CUE_WARNING_THRESHOLD = 60 * MILLIS_PER_SECOND;
+  const CUE_DANGER_THRESHOLD = 10 * MILLIS_PER_SECOND;
+
   const { cuesheetMode, hideIndexColumn } = table.options.meta?.options ?? {
     cuesheetMode: AppMode.Edit,
     hideIndexColumn: false,
@@ -60,9 +67,7 @@ export default function EventRow({
   const mutedText = colourToHex({ ...tmpColour, alpha: tmpColour.alpha * 0.8 });
 
   const rowBgColour: string | undefined = useMemo(() => {
-    if (isLoaded) {
-      return '#087A27'; // $active-green
-    } else if (colour) {
+    if (colour) {
       // the colour is user defined and might be invalid
       const accessibleBackgroundColor = cssOrHexToColour(getAccessibleColour(colour).backgroundColor);
       if (accessibleBackgroundColor !== null) {
@@ -75,11 +80,18 @@ export default function EventRow({
     return;
   }, [colour, isLoaded]);
 
+  const isCueDanger = isLoaded && cueCurrent !== null && cueCurrent <= CUE_DANGER_THRESHOLD;
+  const isCueWarning = isLoaded && cueCurrent !== null && cueCurrent <= CUE_WARNING_THRESHOLD && !isCueDanger;
+
   return (
     <tr
       id={rowId}
       className={cx([
         style.eventRow,
+        isLoaded && style.activeCue,
+        isCueWarning && style.cueWarning,
+        isCueDanger && style.cueDanger,
+        isCueDanger && style.cueDangerBlink,
         skip && style.skip,
         isFirstAfterGroup && style.firstAfterGroup,
         parent && style.hasParent,
@@ -88,6 +100,7 @@ export default function EventRow({
         ...injectedStyles,
         opacity: `${isPast ? '0.2' : '1'}`,
         '--user-bg': groupColour ?? 'transparent',
+        '--cue-progress': `${activeCueProgress}%`,
       }}
       data-cursor={hasCursor}
       data-testid='cuesheet-event'

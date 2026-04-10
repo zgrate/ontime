@@ -1,7 +1,10 @@
 services:
   ontime:
     container_name: ontime
-    image: getontime/ontime:latest
+    #image: getontime/ontime:latest
+    build:
+      context: .
+      dockerfile: Dockerfile-build
     ports:
       - '4001:4001/tcp'
       - '8888:8888/udp'

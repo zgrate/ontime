@@ -118,10 +118,13 @@ export function useSheetImportForm({
   onApply,
   onExport,
 }: UseSheetImportFormProps) {
-  const initialFormValues = useMemo(() => {
-    const persisted = getPersistedImportState(sourceKey);
-    const worksheet = getPreferredWorksheet(worksheetNames, persisted.worksheet, initialMetadata?.worksheet ?? '');
-    return { ...persisted, worksheet };
+  const { initialFormValues, hasPersisted } = useMemo(() => {
+    const { values, isPersisted } = getPersistedImportState(sourceKey);
+    const worksheet = getPreferredWorksheet(worksheetNames, values.worksheet, initialMetadata?.worksheet ?? '');
+    return {
+      initialFormValues: { ...values, worksheet },
+      hasPersisted: isPersisted,
+    };
   }, [initialMetadata?.worksheet, sourceKey, worksheetNames]);
 
   const {
@@ -174,9 +177,11 @@ export function useSheetImportForm({
   const warnings = getImportWarnings(values, headers, existingCustomFieldLabels);
   const warningCount = Object.values(warnings).filter(Boolean).length;
   const previewRef = useRef<SpreadsheetPreviewResponse | null>(null);
+  const autoPreviewFiredRef = useRef(false);
 
   // Rehydrate the form from persisted/default state whenever the source context changes.
   useEffect(() => {
+    autoPreviewFiredRef.current = false;
     reset(initialFormValues);
     dispatch({ type: 'reset' });
   }, [initialFormValues, reset]);
@@ -224,6 +229,16 @@ export function useSheetImportForm({
     },
     [previewImport],
   );
+
+  // Auto-preview on mount when restoring a persisted mapping and metadata is ready.
+  useEffect(() => {
+    if (autoPreviewFiredRef.current) return;
+    if (!hasPersisted) return;
+    if (!isValid || headers.length === 0) return;
+
+    autoPreviewFiredRef.current = true;
+    handleSubmit(handlePreview)();
+  }, [hasPersisted, isValid, headers, handleSubmit, handlePreview]);
 
   const handleApply = useCallback(async () => {
     if (!state.preview) return;

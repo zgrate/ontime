@@ -1,6 +1,6 @@
 import type { AuthenticationStatus, SpreadsheetWorksheetOptions } from 'ontime-types';
 import { ChangeEvent, useCallback, useEffect, useRef, useState } from 'react';
-import { IoCheckmark, IoCloudDownloadOutline, IoShieldCheckmarkOutline } from 'react-icons/io5';
+import { IoCheckmark, IoCloudDownloadOutline } from 'react-icons/io5';
 
 import {
   getWorksheetOptions,
@@ -15,6 +15,7 @@ import Input from '../../../../../common/components/input/input/Input';
 import Tag from '../../../../../common/components/tag/Tag';
 import { openLink } from '../../../../../common/utils/linkUtils';
 import * as Panel from '../../../panel-utils/PanelUtils';
+import { extractSheetId, getPersistedSheetId, persistSheetId } from './gsheetUtils';
 
 import style from './SourcesPanel.module.scss';
 
@@ -27,11 +28,10 @@ export default function GSheetSetup(props: GSheetSetupProps) {
   const { onCancel, onSheetLoaded } = props;
 
   const [file, setFile] = useState<File | null>(null);
-  const [sheetId, setSheetId] = useState('');
+  const [sheetId, setSheetId] = useState(getPersistedSheetId);
   const [authenticationStatus, setAuthenticationStatus] = useState<AuthenticationStatus>('not_authenticated');
   const [authKey, setAuthKey] = useState<string | null>(null);
-  const [loading, setLoading] = useState<'' | 'cancel' | 'connect' | 'authenticate' | 'load-sheet'>('');
-  const [authLink, setAuthLink] = useState('');
+  const [loading, setLoading] = useState<'' | 'cancel' | 'connect' | 'load-sheet'>('');
   const [authError, setAuthError] = useState('');
   const [worksheetError, setWorksheetError] = useState('');
   const pollTimeoutRef = useRef<number | null>(null);
@@ -62,6 +62,7 @@ export default function GSheetSetup(props: GSheetSetupProps) {
   const loadWorksheetOptions = useCallback(
     async (nextSheetId: string) => {
       const worksheetOptions = await getWorksheetOptions(nextSheetId);
+      persistSheetId(nextSheetId);
       onSheetLoaded(nextSheetId, worksheetOptions);
       setWorksheetError('');
     },
@@ -88,7 +89,8 @@ export default function GSheetSetup(props: GSheetSetupProps) {
           return;
         }
 
-        if (result.authenticated === 'authenticated') {
+        if (result.authenticated === 'authenticated' && result.sheetId) {
+          setLoading('load-sheet');
           try {
             await loadWorksheetOptions(result.sheetId);
           } catch (error) {
@@ -125,7 +127,6 @@ export default function GSheetSetup(props: GSheetSetupProps) {
       setAuthenticationStatus(result.authenticated);
       setSheetId('');
       setAuthKey(null);
-      setAuthLink('');
       setAuthError('');
       setWorksheetError('');
     } catch (error) {
@@ -150,7 +151,7 @@ export default function GSheetSetup(props: GSheetSetupProps) {
   };
 
   /**
-   * Requests connection to google auth
+   * Requests connection to google auth and immediately opens the browser verification page.
    */
   const handleConnect = async () => {
     if (!file) return;
@@ -161,41 +162,32 @@ export default function GSheetSetup(props: GSheetSetupProps) {
 
     try {
       const result = await requestConnection(file, sheetId);
-      setAuthLink(result.verification_url);
       setAuthKey(result.user_code);
+
+      // immediately open the verification page and start polling
+      clearFocusListener();
+      clearPollTimeout();
+      clearAuthFallbackTimeout();
+
+      openLink(result.verification_url);
+      authFallbackTimeoutRef.current = window.setTimeout(() => {
+        if (document.hasFocus()) {
+          setLoading('');
+        }
+      }, 1500);
+
+      function authFocusHandler() {
+        clearAuthFallbackTimeout();
+        clearFocusListener();
+        pollUntilAuthenticated();
+      }
+
+      focusListenerRef.current = authFocusHandler;
+      window.addEventListener('focus', authFocusHandler, { once: true });
     } catch (error) {
       setAuthError(maybeAxiosError(error));
-    } finally {
       setLoading('');
     }
-  };
-
-  /**
-   * Open google auth
-   */
-  const handleAuthenticate = () => {
-    setLoading('authenticate');
-    setAuthError('');
-    clearFocusListener();
-    clearPollTimeout();
-    clearAuthFallbackTimeout();
-
-    // open link and schedule a check for when the user focuses again
-    openLink(authLink);
-    authFallbackTimeoutRef.current = window.setTimeout(() => {
-      if (document.hasFocus()) {
-        setLoading('');
-      }
-    }, 1500);
-
-    function authFocusHandler() {
-      clearAuthFallbackTimeout();
-      clearFocusListener();
-      pollUntilAuthenticated();
-    }
-
-    focusListenerRef.current = authFocusHandler;
-    window.addEventListener('focus', authFocusHandler, { once: true });
   };
 
   const handleLoadSheet = async () => {
@@ -215,7 +207,7 @@ export default function GSheetSetup(props: GSheetSetupProps) {
 
   const canConnect = Boolean(file) && Boolean(sheetId);
   const canLoadSheet = Boolean(sheetId);
-  const canAuthenticate = Boolean(authKey) && Boolean(authLink);
+  const isAwaitingAuth = Boolean(authKey);
   const isLoading = Boolean(loading);
   const isAuthenticated = authenticationStatus === 'authenticated';
   const isAuthenticating = authenticationStatus === 'pending';
@@ -224,7 +216,7 @@ export default function GSheetSetup(props: GSheetSetupProps) {
   const statusVariant = isAuthenticated ? 'default' : 'warning';
   const setupMessage = isAuthenticated
     ? 'Load a spreadsheet by its Google Sheet ID.'
-    : canAuthenticate
+    : isAwaitingAuth
       ? 'Finish the device verification in your browser, then return here.'
       : 'Upload your client secret and enter the sheet ID you want to access.';
 
@@ -258,7 +250,7 @@ export default function GSheetSetup(props: GSheetSetupProps) {
             type='file'
             onChange={handleClientSecret}
             accept='.json'
-            disabled={isLoading || canAuthenticate}
+            disabled={isLoading || isAwaitingAuth}
           />
           <div className={style.setupHint}>Use the OAuth client JSON downloaded from your Google Cloud project.</div>
         </Panel.ListGroup>
@@ -274,13 +266,14 @@ export default function GSheetSetup(props: GSheetSetupProps) {
         <Input
           fluid
           value={sheetId}
-          placeholder='Sheet ID'
+          placeholder='Sheet ID or Google Sheets URL'
           onChange={(event) => {
             setWorksheetError('');
-            setSheetId(event.target.value);
+            setSheetId(extractSheetId(event.target.value));
           }}
-          disabled={isLoading || canAuthenticate}
+          disabled={isLoading || isAwaitingAuth}
         />
+        <div className={style.setupHint}>Paste a Google Sheets URL or the sheet ID from the URL bar.</div>
       </Panel.ListGroup>
       {isAuthenticated ? (
         <Panel.ListGroup className={style.setupBlock}>
@@ -292,30 +285,24 @@ export default function GSheetSetup(props: GSheetSetupProps) {
             </Button>
           </Panel.InlineElements>
         </Panel.ListGroup>
-      ) : !canAuthenticate ? (
+      ) : isAwaitingAuth ? (
         <Panel.ListGroup className={style.setupBlock}>
-          <Panel.Description>Generate a Google device code</Panel.Description>
+          <Panel.Description>Waiting for device verification</Panel.Description>
+          <Panel.InlineElements wrap='wrap' className={style.setupActions}>
+            {isAuthenticating && <span>Authenticating...</span>}
+            <CopyTag copyValue={authKey ?? ''}>{authKey}</CopyTag>
+          </Panel.InlineElements>
+          <div className={style.setupHint}>Complete the code flow in your browser, then return here.</div>
+        </Panel.ListGroup>
+      ) : (
+        <Panel.ListGroup className={style.setupBlock}>
+          <Panel.Description>Connect and authenticate with Google</Panel.Description>
           <Panel.InlineElements wrap='wrap' className={style.setupActions}>
             <Button onClick={handleConnect} disabled={!canConnect || isLoading} loading={loading === 'connect'}>
               <IoCheckmark />
               Connect
             </Button>
           </Panel.InlineElements>
-        </Panel.ListGroup>
-      ) : (
-        <Panel.ListGroup className={style.setupBlock}>
-          <Panel.Description>Authenticate this Ontime session with Google</Panel.Description>
-          <Panel.InlineElements wrap='wrap' className={style.setupActions}>
-            {isAuthenticating && <span>Authenticating...</span>}
-            <CopyTag copyValue={authKey ?? ''} disabled={!canAuthenticate}>
-              {authKey ? authKey : 'Upload files to generate Auth Key'}
-            </CopyTag>
-            <Button onClick={handleAuthenticate} disabled={!canAuthenticate}>
-              <IoShieldCheckmarkOutline />
-              Authenticate
-            </Button>
-          </Panel.InlineElements>
-          <div className={style.setupHint}>Open the browser prompt, complete the code flow, then come back here.</div>
         </Panel.ListGroup>
       )}
     </Panel.Section>

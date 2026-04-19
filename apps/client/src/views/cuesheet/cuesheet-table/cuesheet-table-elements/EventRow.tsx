@@ -89,8 +89,8 @@ export default function EventRow({
       className={cx([
         style.eventRow,
         isLoaded && style.activeCue,
-        isCueWarning && style.cueWarning,
-        isCueDanger && style.cueDanger,
+        isCueWarning && style.cueWarningBlink,
+
         isCueDanger && style.cueDangerBlink,
         skip && style.skip,
         isFirstAfterGroup && style.firstAfterGroup,

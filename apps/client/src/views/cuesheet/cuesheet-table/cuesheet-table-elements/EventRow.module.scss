@@ -63,25 +63,34 @@
     background-color: $gray-1200;
   }
 
-  &.cueWarning {
-    --cue-progress-colour: #{$warning-orange};
-  }
-
-  &.cueDanger {
-    --cue-progress-colour: #{$playback-negative};
+  &.cueWarningBlink td[data-column-id='title'] {
+    animation: cueWarningBlink 2.4s ease-in-out infinite;
   }
 
   &.cueDangerBlink td[data-column-id='title'] {
-    animation: cueDangerBlink 1s step-start infinite;
+    animation: cueDangerBlink 0.6s steps(2, end) infinite;
+  }
+}
+
+@keyframes cueWarningBlink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.68;
   }
 }
 
 @keyframes cueDangerBlink {
-  50% {
-    --cue-progress-colour: #{$playback-negative};
+  0%,
+  49% {
+    opacity: 1;
   }
 
+  50%,
   100% {
-    --cue-progress-colour: #{$gray-1200};
+    opacity: 0.35;
   }
 }

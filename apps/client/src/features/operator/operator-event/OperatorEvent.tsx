@@ -79,8 +79,7 @@ function OperatorEvent({
   const cueProgressClasses = cx([
     style.textBlock,
     !hasSecondary && style.singleLine,
-    isCueWarning && style.cueWarning,
-    isCueDanger && style.cueDanger,
+    isCueWarning && style.cueWarningBlink,
     isCueDanger && style.cueDangerBlink,
   ]);
 
@@ -97,11 +96,7 @@ function OperatorEvent({
     <div
       className={operatorClasses}
       data-testid={cue}
-      style={
-        {
-          '--cue-progress': `${activeCueProgress}%`,
-        } as CSSProperties
-      }
+      style={{ '--cue-progress': `${activeCueProgress}%` } as CSSProperties}
       ref={selectedRef}
       onContextMenu={handleLongPress}
       {...mouseHandlers}

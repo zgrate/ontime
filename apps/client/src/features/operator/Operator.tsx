@@ -26,8 +26,8 @@ import { OperatorData, useOperatorData } from './useOperatorData';
 import style from './Operator.module.scss';
 
 const selectedOffset = 50;
-const CUE_WARNING_THRESHOLD = 60 * MILLIS_PER_SECOND;
-const CUE_DANGER_THRESHOLD = 10 * MILLIS_PER_SECOND;
+const CUE_WARNING_CAP = 60 * MILLIS_PER_SECOND;
+const CUE_DANGER_CAP = 10 * MILLIS_PER_SECOND;
 
 export default function OperatorLoader() {
   const { data, status } = useOperatorData();
@@ -119,8 +119,12 @@ function Operator({ rundown, rundownMetadata, customFields, settings }: Operator
 
   const canEdit = shouldEdit && subscribe.length;
   const activeCueProgress = getProgress(current, duration);
-  const isCueDanger = current !== null && current <= CUE_DANGER_THRESHOLD;
-  const isCueWarning = current !== null && current <= CUE_WARNING_THRESHOLD && !isCueDanger;
+  const safeDuration = Math.max(duration ?? 0, 0);
+  const cueWarningThreshold = Math.min(CUE_WARNING_CAP, safeDuration * 0.1);
+  const cueDangerThreshold = Math.min(CUE_DANGER_CAP, safeDuration * 0.01);
+
+  const isCueDanger = current !== null && current <= cueDangerThreshold;
+  const isCueWarning = current !== null && current <= cueWarningThreshold && !isCueDanger;
 
   return (
     <div className={style.operatorContainer} data-testid='operator-view'>

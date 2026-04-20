@@ -194,13 +194,14 @@ export default function CuesheetTable({ columns, cuesheetMode, tableRoot, setCue
     () => ({
       activeCueProgress,
       cueCurrent: current,
+      cueDuration: duration,
       columnSizeVars,
       cursor,
       listeners,
       rows,
       table,
     }),
-    [activeCueProgress, current, columnSizeVars, cursor, listeners, rows, table],
+    [activeCueProgress, current, duration, columnSizeVars, cursor, listeners, rows, table],
   );
 
   const computeItemKey = useCallback((_: number, item: ExtendedEntry) => item.id, []);
@@ -266,6 +267,7 @@ export default function CuesheetTable({ columns, cuesheetMode, tableRoot, setCue
 interface CuesheetVirtuosoContext {
   activeCueProgress: number;
   cueCurrent: number | null;
+  cueDuration: number | null;
   columnSizeVars: { [key: string]: number };
   cursor: string | null;
   listeners: ReturnType<typeof useTableNav>['listeners'];
@@ -375,6 +377,7 @@ const CuesheetTableRow = memo(function CuesheetTableRow({
       isLoaded={entry.isLoaded}
       activeCueProgress={context.activeCueProgress}
       cueCurrent={context.cueCurrent}
+      cueDuration={context.cueDuration}
       isPast={entry.isPast}
       groupColour={entry.groupColour}
       flag={entry.flag}

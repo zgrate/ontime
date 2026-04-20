@@ -21,6 +21,7 @@ interface EventRowProps {
   isLoaded: boolean;
   activeCueProgress: number;
   cueCurrent: number | null;
+  cueDuration: number | null;
   isPast: boolean;
   groupColour: string | undefined;
   flag: boolean;
@@ -41,6 +42,7 @@ export default function EventRow({
   isLoaded,
   activeCueProgress,
   cueCurrent,
+  cueDuration,
   isPast,
   groupColour,
   flag,
@@ -52,8 +54,8 @@ export default function EventRow({
   hasCursor,
   ...virtuosoProps
 }: EventRowProps) {
-  const CUE_WARNING_THRESHOLD = 60 * MILLIS_PER_SECOND;
-  const CUE_DANGER_THRESHOLD = 10 * MILLIS_PER_SECOND;
+  const CUE_WARNING_CAP = 60 * MILLIS_PER_SECOND;
+  const CUE_DANGER_CAP = 10 * MILLIS_PER_SECOND;
 
   const { cuesheetMode, hideIndexColumn } = table.options.meta?.options ?? {
     cuesheetMode: AppMode.Edit,
@@ -80,8 +82,12 @@ export default function EventRow({
     return;
   }, [colour, isLoaded]);
 
-  const isCueDanger = isLoaded && cueCurrent !== null && cueCurrent <= CUE_DANGER_THRESHOLD;
-  const isCueWarning = isLoaded && cueCurrent !== null && cueCurrent <= CUE_WARNING_THRESHOLD && !isCueDanger;
+  const safeDuration = Math.max(cueDuration ?? 0, 0);
+  const cueWarningThreshold = Math.min(CUE_WARNING_CAP, safeDuration * 0.1);
+  const cueDangerThreshold = Math.min(CUE_DANGER_CAP, safeDuration * 0.01);
+
+  const isCueDanger = isLoaded && cueCurrent !== null && cueCurrent <= cueDangerThreshold;
+  const isCueWarning = isLoaded && cueCurrent !== null && cueCurrent <= cueWarningThreshold && !isCueDanger;
 
   return (
     <tr

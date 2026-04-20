@@ -29,7 +29,7 @@
     .textBlock {
       background-image: linear-gradient(
         to right,
-        color-mix(in srgb, $active-green 68%, transparent) var(--cue-progress, 0%),
+        color-mix(in srgb, $active-green var(--cue-progress-strength, 68%), transparent) var(--cue-progress, 0%),
         $gray-1200 var(--cue-progress, 0%)
       );
       border-radius: $component-border-radius-md;
@@ -87,23 +87,23 @@
 @keyframes cueWarningBlink {
   0%,
   100% {
-    opacity: 1;
+    --cue-progress-strength: 68%;
   }
 
   50% {
-    opacity: 0.68;
+    --cue-progress-strength: 40%;
   }
 }
 
 @keyframes cueDangerBlink {
   0%,
   49% {
-    opacity: 1;
+    --cue-progress-strength: 68%;
   }
 
   50%,
   100% {
-    opacity: 0.35;
+    --cue-progress-strength: 24%;
   }
 }
 
